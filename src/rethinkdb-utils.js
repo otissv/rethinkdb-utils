@@ -206,11 +206,12 @@ export function createDB ({ db, dbName }) {
 }
 
 
-export function createTable ({ db, tableName }) {
+export function createTable ({ db, tableName, indexes }) {
   return promise((resolve, reject) => {
     R.pipeP(
       _checkTableExists({ db, tableName }),
-      _createTable({ db, tableName })
+      _createTable({ db, tableName }),
+      _createIndexes({ db, tableName, indexes })
     )();
   });
 }
