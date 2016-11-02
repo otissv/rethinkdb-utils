@@ -89,7 +89,7 @@ function _checkTableExists ({ db, tableName }) {
 function _createTable ({ db, tableName }) {
   return R.curry(tableExists => {
     return promise((resolve, reject) => {
-      if (tableExists) return resolve();
+      if (tableExists) return resolve(true);
 
       return db.tableCreate(tableName)
         .run()
@@ -123,10 +123,38 @@ function _dropTable ({ db, tableName }) {
 };
 
 
+// Check if indexes already exist
+function _indexesDontExist ({db, tableName, indexes}) {
+  return R.curry(tableExists => {
+    return promise((resolve, reject) => {
+      if (!tableExists) return reject(`${tableName} does not exist.`);
+
+      return db.table(tableName)
+        .indexList()
+        .run()
+        .then(response => {
+          const result = [...indexes, 'otis'].reduce((prev, curr) => {
+            return R.isEmpty(response.filter(r => r === curr)) ? [...prev, curr] : prev;
+          }, []);
+
+          return resolve(result);
+        })
+        .error(err => {
+          console.log('Error occured creating indexes', err);
+        });
+
+    });
+  });
+}
+
+
 // Create secondary indexes;
 function _createIndexes ({db, tableName, indexes}) {
-  return R.curry(() => {
+  return R.curry(indexCreate=> {
+    const tmpIndex = indexCreate || indexes;
+
     return promise((resolve, reject) => {
+      if (!indexCreate) return resolve();
 
       const makeIndex = idx => {
         return db.table(tableName)
@@ -140,12 +168,12 @@ function _createIndexes ({db, tableName, indexes}) {
           });
       };
 
-      if (Array.isArray(indexes)) {
-        indexes.forEach(idx => {
+      if (Array.isArray(tmpIndex)) {
+        tmpIndex.forEach(idx => {
           makeIndex(idx);
         });
-      } else if (indexes) {
-        makeIndex(indexes);
+      } else if (tmpIndex) {
+        makeIndex(tmpIndex);
       } else {
         resolve();
       }
@@ -247,7 +275,7 @@ export function seed ({ dbName, tableName, fn, data, db, indexes }) {
 
   function callback (resolve) {
     return R.curry((response) => {
-      if (response.errors) return response.errors;
+      // if (response.errors) return response.errors;
       console.log(response);
       console.log(`${tableNameTile} mocks save to rethinkdb`);
     });
@@ -261,10 +289,10 @@ export function seed ({ dbName, tableName, fn, data, db, indexes }) {
       // _checkDBExists ({ db, dbName }),
       // _createDB ({ db, dbName }),
       _checkTableExists({ db, tableName }),
-      _checkTableExists({ db, tableName }),
       _createTable({ db, tableName }),
+      _indexesDontExist({ db, tableName, indexes }),
       _createIndexes({ db, tableName, indexes }),
-      _insertIntoTable({ db, tableName, data }),
+      // _insertIntoTable({ db, tableName, data }),
       fn(resolve)
     )();
   });
