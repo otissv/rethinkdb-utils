@@ -133,7 +133,7 @@ function _indexesDontExist ({db, tableName, indexes}) {
         .indexList()
         .run()
         .then(response => {
-          const result = [...indexes, 'otis'].reduce((prev, curr) => {
+          const result = [...indexes].reduce((prev, curr) => {
             return R.isEmpty(response.filter(r => r === curr)) ? [...prev, curr] : prev;
           }, []);
 
@@ -292,7 +292,7 @@ export function seed ({ dbName, tableName, fn, data, db, indexes }) {
       _createTable({ db, tableName }),
       _indexesDontExist({ db, tableName, indexes }),
       _createIndexes({ db, tableName, indexes }),
-      // _insertIntoTable({ db, tableName, data }),
+      _insertIntoTable({ db, tableName, data }),
       fn(resolve)
     )();
   });
