@@ -124,7 +124,7 @@ function _dropTable ({ db, tableName }) {
 
 
 // Check if indexes already exist
-function _indexesDontExist ({db, tableName, indexes}) {
+function _indexesDoesntExist ({db, tableName, indexes}) {
   return R.curry(tableExists => {
     return promise((resolve, reject) => {
       if (!tableExists) return reject(`${tableName} does not exist.`);
@@ -133,9 +133,13 @@ function _indexesDontExist ({db, tableName, indexes}) {
         .indexList()
         .run()
         .then(response => {
-          const result = [...indexes].reduce((prev, curr) => {
-            return R.isEmpty(response.filter(r => r === curr)) ? [...prev, curr] : prev;
-          }, []);
+          let result;
+
+          if (indexes) {
+            result = [...indexes].reduce((prev, curr) => {
+              return R.isEmpty(response.filter(r => r === curr)) ? [...prev, curr] : prev;
+            }, []);
+          }
 
           return resolve(result);
         })
@@ -262,6 +266,7 @@ export function insert ({ dbName, tableName, data, db, fn, indexes }) {
       // _createDB ({ db, dbName }),
       _checkTableExists({ db, tableName }),
       _createTable({ db, tableName }),
+      _indexesDoesntExist({ db, tableName, indexes }),
       _createIndexes({ db, tableName, indexes }),
       _insertIntoTable({ db, tableName, data }),
       fn(resolve)
@@ -290,7 +295,7 @@ export function seed ({ dbName, tableName, fn, data, db, indexes }) {
       // _createDB ({ db, dbName }),
       _checkTableExists({ db, tableName }),
       _createTable({ db, tableName }),
-      _indexesDontExist({ db, tableName, indexes }),
+      _indexesDoesntExist({ db, tableName, indexes }),
       _createIndexes({ db, tableName, indexes }),
       _insertIntoTable({ db, tableName, data }),
       fn(resolve)
