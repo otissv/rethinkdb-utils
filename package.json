@@ -1,10 +1,11 @@
 {
   "name": "rethinkdb-utils",
-  "version": "1.0.0",
-  "description": "",
+  "version": "0.0.1",
+  "description": "Rethinkdb Utils Alpah",
   "main": "lib/rethinkdb-utils.js",
   "scripts": {
     "build": "babel src -d lib",
+    "build:watch": "watch 'npm run build' './src'",
     "lint": "eslint --quiet './src' && echo 'Completed:' && date || true",
     "lint:watch": "watch 'npm run lint' ./src",
     "tape": "babel-node test-runner.js | tap-min || true",
@@ -18,12 +19,13 @@
   "devDependencies": {
     "babel-cli": "^6.16.0",
     "babel-eslint": "^7.0.0",
-    "babel-preset-es2015": "^6.16.0",
+    "babel-preset-es2015": "^6.18.0",
     "babel-preset-stage-2": "^6.17.0",
     "eslint": "^3.8.1",
     "eslint-config-standard": "^6.2.0",
     "eslint-plugin-promise": "^3.0.0",
-    "eslint-plugin-standard": "^2.0.1"
+    "eslint-plugin-standard": "^2.0.1",
+    "watch": "^1.0.1"
   },
   "babel": {
     "presets": [

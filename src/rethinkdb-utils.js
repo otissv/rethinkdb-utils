@@ -32,7 +32,6 @@ function _checkDBExists ({ db, dbName }) {
 function _createDB ({ db, dbName }) {
   return R.curry(dbExists => {
     return promise((resolve, reject) => {
-      console.log(dbName, dbExists);
       if (dbExists) return resolve();
 
       return db.dbCreate(dbName)
@@ -154,12 +153,13 @@ function _indexesDoesntExist ({db, tableName, indexes}) {
 
 // Create secondary indexes;
 function _createIndexes ({db, tableName, indexes}) {
-  return R.curry(indexCreate=> {
+  return R.curry(indexCreate => {
     const tmpIndex = indexCreate || indexes;
 
-    return promise((resolve, reject) => {
-      if (!indexCreate) return resolve();
 
+    return promise((resolve, reject) => {
+      if (!tmpIndex) return resolve();
+// indexCreate('authorName', r.row("author")("name"))
       const makeIndex = idx => {
         return db.table(tableName)
           .indexCreate(idx)
@@ -172,12 +172,26 @@ function _createIndexes ({db, tableName, indexes}) {
           });
       };
 
+      const makeNestedIndex = idxSplit => {
+        return db.table(tableName)
+          .indexCreate('user', (row) => row('user')('id'))
+          .run()
+          .then(response => {
+            return resolve(response);
+          })
+          .error(err => {
+            console.log('Error occured creating indexes', err);
+          });
+      };
+
       if (Array.isArray(tmpIndex)) {
         tmpIndex.forEach(idx => {
-          makeIndex(idx);
+          const idxSplit = idx.split('.');
+          idxSplit[1] ? makeNestedIndex(idxSplit) : makeIndex(idx);
         });
       } else if (tmpIndex) {
-        makeIndex(tmpIndex);
+        const tmpSplit = tmpIndex.split('.');
+        tmpSplit[1] ? makeNestedIndex(tmpSplit) : makeIndex(tmpIndex);
       } else {
         resolve();
       }
@@ -203,7 +217,6 @@ function _insertIntoTable ({ db, tableName, data }) {
     });
   });
 };
-
 
 
 export function uuid ({ db, host, port }) {
@@ -276,7 +289,7 @@ export function insert ({ dbName, tableName, data, db, fn, indexes }) {
 
 // Seed tables
 export function seed ({ dbName, tableName, fn, data, db, indexes }) {
-  const tableNameTile = tableName.replace(tableName.charAt(0), tableName.charAt(0).toUpperCase())
+  const tableNameTile = tableName.replace(tableName.charAt(0), tableName.charAt(0).toUpperCase());
 
   function callback (resolve) {
     return R.curry((response) => {
@@ -301,4 +314,68 @@ export function seed ({ dbName, tableName, fn, data, db, indexes }) {
       fn(resolve)
     )();
   });
+}
+
+// dynamic filtering and matching
+export function filterMatch (filterObject) {
+  const fields = Object.keys(filterObject)[0].split('.');
+
+  function gererateDoc (doc) {
+    switch (fields.length) {
+      case 1:
+        return doc(fields[0]);
+      case 2:
+        return doc(fields[0])(fields[1]);
+      case 3:
+        return doc(fields[0])(fields[1])(fields[2]);
+      case 4:
+        return doc(fields[0])(fields[1])(fields[2])(fields[3]);
+      default:
+        return doc;
+    }
+  }
+
+
+  let condition;
+
+  for (let key in filterObject) {
+    let conditionForThisKey;
+
+    const filterProps = filterObject[key];
+
+    if (filterProps.condition === 'equals') {
+      conditionForThisKey = doc => gererateDoc(doc).match(`(?i)^${filterProps.value}$`);
+
+    } else if (filterProps.condition === 'beginsWith') {
+      conditionForThisKey = doc => gererateDoc(doc).match(`(?i)^${filterProps.value}`);
+
+    } else if (filterProps.condition === 'endsWith') {
+      conditionForThisKey = doc => gererateDoc(doc).match(`(?i)${filterProps.value}$`);
+
+    } else if (filterProps.condition === 'greaterThan') {
+    } else if (filterProps.condition === 'greaterThanEqualTo') {
+    } else if (filterProps.condition === 'lessThan') {
+    } else if (filterProps.condition === 'lessThanEqualTo') {
+    } else if (filterProps.condition === 'between') {
+    } else if (filterProps.condition === 'min') {
+    } else if (filterProps.condition === 'max') {
+    } else if (filterProps.condition === 'minLength') {
+    } else if (filterProps.condition === 'maxLength') {
+    } else if (filterProps.condition === 'boolean') {
+    } else if (filterProps.condition === 'contains') {
+      conditionForThisKey = doc => gererateDoc(doc).match(`(?i)${filterProps.value}`);
+    } else {
+      // custom match or has
+      conditionForThisKey = doc => gererateDoc(doc).match(`${filterProps.value}`);
+    }
+
+
+    if (typeof condition === 'undefined') {
+      condition = conditionForThisKey;
+    } else {
+      condition = condition.and(conditionForThisKey);
+    }
+  }
+
+  return condition;
 }
